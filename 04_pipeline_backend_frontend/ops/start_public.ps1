@@ -42,7 +42,7 @@ Set-Content -Path (Join-Path $root "04_pipeline_backend_frontend\web\api_url.txt
 $ErrorActionPreference = "Continue"   # git writes progress to stderr, which is not an error
 git add 04_pipeline_backend_frontend/web/api_url.txt
 git commit -m "chore: update tunnel URL" 2>&1 | Out-Null
-git push fork main 2>&1 | Out-Null
+git push fork HEAD:main 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) { Write-Host "WARNING: could not push the new URL to your fork (are you logged in to GitHub?)" }
 $ErrorActionPreference = "Stop"
 Write-Host ""
