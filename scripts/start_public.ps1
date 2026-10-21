@@ -39,9 +39,12 @@ for ($attempt = 1; $attempt -le 8 -and -not $url; $attempt++) {
 if (-not $url) { throw "Could not open a tunnel. Try again in a minute." }
 
 Set-Content -Path (Join-Path $root "docs\api_url.txt") -Value $url -NoNewline -Encoding ascii
+$ErrorActionPreference = "Continue"   # git writes progress to stderr, which is not an error
 git add docs/api_url.txt
 git commit -m "chore: update tunnel URL" 2>&1 | Out-Null
 git push fork main 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) { Write-Host "WARNING: could not push the new URL to your fork (are you logged in to GitHub?)" }
+$ErrorActionPreference = "Stop"
 Write-Host ""
 Write-Host "LIVE: https://sangeeth0301.github.io/multilingual-aa-sfaca/   (the page picks up the new URL within ~1-2 minutes)"
 Write-Host "API tunnel: $url"
