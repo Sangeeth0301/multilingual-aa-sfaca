@@ -1,0 +1,33 @@
+name: Deploy web UI to GitHub Pages
+
+# Publishes the static page owned by Member 4. The model API is hosted separately;
+# the page finds it through web/api_url.txt (see 04_pipeline_backend_frontend/REPORT.md).
+on:
+  push:
+    branches: [main]
+    paths: ["04_pipeline_backend_frontend/web/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: 04_pipeline_backend_frontend/web
+      - id: deployment
+        uses: actions/deploy-pages@v4
