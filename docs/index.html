@@ -91,7 +91,13 @@ svg text{fill:var(--mut);font-size:10px}
 </div>
 <script src="config.js"></script>
 <script>
-const API=(window.SFACA_API_URL||"").replace(/\/$/,"");
+let API=(window.SFACA_API_URL||"").replace(/\/$/,"");
+// If a laptop tunnel hosts the API, its URL is published in api_url.txt next to this page so
+// restarting the tunnel never requires editing the code.
+async function resolveApi(){
+  try{const t=(await(await fetch("api_url.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
+    if(/^https:\/\/[\w.-]+$/.test(t))API=t}catch(e){}
+}
 const $=s=>document.querySelector(s);
 const esc=t=>t.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 const NAMES={"human":"Human","Llama-2-70b-chat-hf":"Llama-2 70B","Mistral-7B-Instruct-v0.2":"Mistral 7B","aya-101":"Aya-101","gpt-3.5-turbo-0125":"GPT-3.5 Turbo","opt-iml-max-30b":"OPT-IML 30B","v5-Eagle-7B-HF":"Eagle 7B","vicuna-13b":"Vicuna 13B"};
@@ -116,7 +122,7 @@ async function checkHealth(tries){
     else{b.textContent="Cannot reach the analysis server"+(API?" at "+API:"")+". Please try again later.";b.classList.remove("hidden")}
   }
 }
-checkHealth(24);
+resolveApi().then(()=>checkHealth(24));
 
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{mode=b.dataset.m;
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===b));
@@ -136,7 +142,9 @@ function formData(){
   return fd;
 }
 async function call(path){
-  const r=await fetch(API+path,{method:"POST",body:formData()});
+  let r;
+  try{r=await fetch(API+path,{method:"POST",body:formData()})}
+  catch(e){await resolveApi();r=await fetch(API+path,{method:"POST",body:formData()})}
   if(!r.ok){let m="Server error "+r.status;try{m=(await r.json()).detail||m}catch(e){}throw new Error(m)}
   return r;
 }
