@@ -32,7 +32,8 @@ function Start-Api {
 # Cloudflare's tunnel-creation call is slow (10-16 s) and cloudflared gives up at 15 s, so retry.
 function Open-Tunnel {
     Get-Process cloudflared -ErrorAction SilentlyContinue | Stop-Process -Force
-    for ($attempt = 1; $attempt -le 8; $attempt++) {
+    # Few attempts only: Cloudflare rate-limits tunnel creation (HTTP 429) if we hammer it.
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
         Write-Host "Opening tunnel (attempt $attempt)..."
         try { Remove-Item $log -Force -ErrorAction Stop } catch {}
         $p = Start-Process $cf -ArgumentList "tunnel","--no-autoupdate","--edge-ip-version","4","--protocol","http2","--url","http://localhost:7860" `
@@ -41,12 +42,14 @@ function Open-Tunnel {
             Start-Sleep 3
             if (Test-Path $log) {
                 $txt = Get-Content $log -Raw
+                if ($txt -match "status 429") { if (-not $p.HasExited) { $p | Stop-Process -Force }; return "RATE_LIMITED" }
                 if ($txt -match "Registered tunnel connection" -and $txt -match "https://(?!api\.)[a-z0-9-]+\.trycloudflare\.com") {
                     return $Matches[0]
                 }
             }
         }
         if (-not $p.HasExited) { $p | Stop-Process -Force }
+        Start-Sleep 10
     }
     return $null
 }
@@ -70,7 +73,11 @@ while ($true) {
     if (-not $url) {
         if (-not (Test-Api)) { Start-Api }
         $url = Open-Tunnel
-        if (-not $url) { Write-Host "Could not open a tunnel; retrying in 30 s..."; Start-Sleep 30; continue }
+        if ($url -eq "RATE_LIMITED") {
+            Write-Host "Cloudflare is rate-limiting new tunnels (429). Waiting 5 minutes before trying again..."
+            $url = $null; Start-Sleep 300; continue
+        }
+        if (-not $url) { Write-Host "Could not open a tunnel; retrying in 2 minutes..."; Start-Sleep 120; continue }
         Publish-Url $url
         $failures = 0
         Write-Host ""
