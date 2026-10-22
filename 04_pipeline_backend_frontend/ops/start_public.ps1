@@ -34,7 +34,7 @@ function Open-Tunnel {
     Get-Process cloudflared -ErrorAction SilentlyContinue | Stop-Process -Force
     for ($attempt = 1; $attempt -le 8; $attempt++) {
         Write-Host "Opening tunnel (attempt $attempt)..."
-        Remove-Item $log -ErrorAction SilentlyContinue
+        try { Remove-Item $log -Force -ErrorAction Stop } catch {}
         $p = Start-Process $cf -ArgumentList "tunnel","--no-autoupdate","--edge-ip-version","4","--protocol","http2","--url","http://localhost:7860" `
             -WindowStyle Hidden -PassThru -RedirectStandardError $log
         for ($i = 0; $i -lt 20 -and -not $p.HasExited; $i++) {
@@ -66,6 +66,7 @@ Write-Host "API is healthy."
 $url = $null
 $failures = 0
 while ($true) {
+  try {
     if (-not $url) {
         if (-not (Test-Api)) { Start-Api }
         $url = Open-Tunnel
@@ -84,4 +85,9 @@ while ($true) {
         Write-Host "Public address stopped answering; opening a new tunnel."
         $url = $null
     }
+  } catch {
+    Write-Host ("Launcher error (continuing): " + $_.Exception.Message)
+    $url = $null
+    Start-Sleep 30
+  }
 }

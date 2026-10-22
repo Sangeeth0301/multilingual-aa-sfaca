@@ -92,9 +92,15 @@ svg text{fill:var(--mut);font-size:10px}
 <script src="config.js"></script>
 <script>
 let API=(window.SFACA_API_URL||"").replace(/\/$/,"");
-// If a laptop tunnel hosts the API, its URL is published in api_url.txt next to this page so
-// restarting the tunnel never requires editing the code.
+const ON_PAGES=/\.github\.io$/.test(location.hostname);
+// Where is the analysis server?
+//  1. ?api=http://localhost:7860 in the address bar: use that server (for example your own backend).
+//  2. The page is served by a backend (localhost, a LAN address, a Space): same origin, nothing to look up.
+//  3. GitHub Pages: read the shared laptop tunnel address published beside the page in api_url.txt.
 async function resolveApi(){
+  const q=new URLSearchParams(location.search).get("api");
+  if(q&&/^https?:\/\/[\w.:-]+$/.test(q)){API=q.replace(/\/$/,"");return}
+  if(!ON_PAGES)return;
   try{const t=(await(await fetch("api_url.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
     if(/^https:\/\/[\w.-]+$/.test(t))API=t}catch(e){}
 }
@@ -119,7 +125,9 @@ async function checkHealth(tries){
     else b.classList.add("hidden");
   }catch(e){
     if(tries>0){b.textContent="Waking up the analysis server, this can take up to two minutes…";b.classList.remove("hidden");setTimeout(()=>checkHealth(tries-1),5000)}
-    else{b.textContent="Cannot reach the analysis server"+(API?" at "+API:"")+". Please try again later.";b.classList.remove("hidden")}
+    else{b.textContent=ON_PAGES&&!API.startsWith("http://localhost")
+      ?"Cannot reach the shared server. If the backend runs on this computer, open http://localhost:7860 instead, or add ?api=http://localhost:7860 to this page's address."
+      :"Cannot reach the analysis server"+(API?" at "+API:"")+". Check that the backend is running.";b.classList.remove("hidden")}
   }
 }
 resolveApi().then(()=>checkHealth(24));

@@ -64,8 +64,10 @@ async def lifespan(app):
 
 app = FastAPI(title="SFA-CA AI-text attribution", version="2.0.0", lifespan=lifespan)
 _origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
+# allow_private_network lets a page on the public internet (GitHub Pages) call a backend on this computer.
 app.add_middleware(CORSMiddleware, allow_origins=_origins, allow_credentials=False,
-                   allow_methods=["GET", "POST"], allow_headers=["*"])
+                   allow_methods=["GET", "POST"], allow_headers=["*"], allow_private_network=True)
+
 
 
 @app.get("/health")
